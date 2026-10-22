@@ -4,6 +4,7 @@ import { gunzipSync } from "node:zlib";
 
 export interface XunjiEnv {
 	XUNJI_TRAIN_API_KEY?: string;
+	XUNJI_FOOD_API_KEY?: string;
 }
 
 export const trainingInput = z.object({
@@ -14,6 +15,57 @@ export const trainingInput = z.object({
 });
 
 const TRAINING_URL = "https://trains.xunjiapp.cn/api_trains_for_llm_v2";
+
+export const foodInput = z.object({
+	datestr: z.iso.date().describe("Requested food-record date in the user's timezone, YYYY-MM-DD. Query only dates the user requested, within the past year or next three months."),
+	include_detail: z.boolean().default(true).describe("Include individual foods, quantities and nutrition details."),
+});
+
+export async function getFood(
+	bindings: XunjiEnv,
+	input: z.input<typeof foodInput>,
+	fetcher: typeof fetch = fetch,
+) {
+	const parsed = foodInput.safeParse(input);
+	if (!parsed.success) return failure("Invalid food date or options. Use YYYY-MM-DD.");
+	const key = bindings.XUNJI_FOOD_API_KEY?.trim();
+	if (!key) return failure("Configure the XUNJI_FOOD_API_KEY Worker secret before querying food records.");
+	if (!/^[\x21-\x7e]+$/.test(key)) return failure("XUNJI_FOOD_KEY_FORMAT: Store only the raw food API key without spaces, control characters or non-ASCII characters.");
+	let stage = "request";
+	try {
+		const response = await fetcher("https://eatings.xunjiapp.cn/open/food/query_gzip", {
+			method: "POST",
+			headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+			body: JSON.stringify({ start_date: parsed.data.datestr, end_date: parsed.data.datestr, include_detail: parsed.data.include_detail }),
+			redirect: "manual", signal: AbortSignal.timeout(20_000),
+		});
+		if ([301, 302, 303, 307, 308].includes(response.status)) return failure(`XUNJI_FOOD_REDIRECT: HTTP ${response.status}; redirect was not followed.`);
+		if (!response.ok) {
+			const retry = response.headers.get("Retry-After");
+			return failure(`XUNJI_FOOD_HTTP: HTTP ${response.status}.${response.status === 429 && retry && /^\d+$/.test(retry) ? ` Retry after ${retry} seconds.` : ""}`);
+		}
+		stage = "response-body";
+		const bytes = new Uint8Array(await response.arrayBuffer());
+		stage = "gzip-decode";
+		const decoded = bytes[0] === 0x1f && bytes[1] === 0x8b ? gunzipSync(bytes, { maxOutputLength: 10 * 1024 * 1024 }) : bytes;
+		stage = "json-parse";
+		const data: unknown = JSON.parse(new TextDecoder().decode(decoded).replace(/^\uFEFF/, ""));
+		if (!data || typeof data !== "object") return failure("XUNJI_FOOD_RESPONSE: Invalid API response.");
+		const result = data as Record<string, unknown>;
+		if (result.success !== true || result.res === undefined || result.res === null) {
+			const message = JSON.stringify(result);
+			if (/apikey (missing|invalid)/i.test(message)) return failure("XUNJI_FOOD_AUTH: Xunji rejected the food key. Update the Worker secret from the Xunji app.");
+			if (/too frequent/i.test(message)) return failure(`XUNJI_FOOD_RATE_LIMIT: Wait before retrying.${typeof result.retry_after_ms === "number" ? ` Retry after ${result.retry_after_ms} ms.` : ""}`);
+			if (/仅VIP可用/.test(message)) return failure("XUNJI_FOOD_VIP: This API requires VIP membership.");
+			return failure("XUNJI_FOOD_RESPONSE: Expected success:true and res from the food API.");
+		}
+		const text = JSON.stringify({ datestr: parsed.data.datestr, res: result.res }).split(key).join("[REDACTED]");
+		return { content: [{ type: "text" as const, text }] };
+	} catch (error) {
+		const timeout = error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name);
+		return failure(`XUNJI_FOOD_${timeout ? "TIMEOUT" : "FAILURE"}: Failed during ${stage}. No changes were made.`);
+	}
+}
 
 function failure(message: string) {
 	return { isError: true, content: [{ type: "text" as const, text: message }] };
@@ -94,6 +146,14 @@ export async function getTraining(
 }
 
 export function registerXunjiTools(server: McpServer, bindings: XunjiEnv, authenticated: boolean) {
+	server.registerTool("xunji_get_food", {
+		description: "Read Xunji food and nutrition records for one explicitly requested date. Uses the separate food Worker secret, returns individual foods and totals where provided. Read-only; no food creation, template application or writes.",
+		inputSchema: foodInput,
+		annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+	}, async (input) => {
+		if (!authenticated) return failure("Sign in through Cloudflare Access before reading Xunji food data.");
+		return getFood(bindings, input);
+	});
 	server.registerTool("xunji_get_training", {
 		description: "Read Xunji training logs for a specified date. Only call when the user requests their training data. Read-only; use include_full_data for RPE, notes and heart rate. Credentials stay in Worker secrets.",
 		inputSchema: trainingInput,

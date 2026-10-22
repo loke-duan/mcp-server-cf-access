@@ -1,3 +1,23 @@
+## Xunji food records
+
+The read-only `xunji_get_food` tool reads a single requested `datestr` (YYYY-MM-DD),
+with `include_detail: true` by default. It sends that date as both `start_date`
+and `end_date` to `https://eatings.xunjiapp.cn/open/food/query_gzip`.
+
+Set `XUNJI_FOOD_API_KEY` under the Worker's **runtime Settings > Variables and
+Secrets**, then Deploy. Build variables and secrets are not runtime bindings.
+This key is separate from the training key and food-search key. The tool never
+creates or updates records. As with training, access is protected by the existing
+Cloudflare Access policy; admitted users can read the owner's food records.
+
+After deployment refresh the MCP application's tools to discover `xunji_get_food`.
+The tool accepts only API responses with `success: true` and `res`, supports gzip
+responses, refuses redirects, and does not retry automatically. Reuse results
+within a task and respect the 15-second food API read limit. Keep queries within
+the documented past-year / next-three-month window.
+
+---
+
 ## Xunji training tool
 
 This server exposes the read-only `xunji_get_training` MCP tool. Arguments:
