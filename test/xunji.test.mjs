@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { gzipSync } from "node:zlib";
 import { getTraining, registerXunjiTools } from "../src/xunji.ts";
 
 const bindings = { XUNJI_TRAIN_API_KEY: "test-only-training-secret" };
@@ -78,4 +79,34 @@ test("tool registration is read-only and refuses unauthenticated calls", async (
 	const result = await registered[2](input);
 	assert.equal(result.isError, true);
 	assert.match(result.content[0].text, /Sign in/);
+});
+
+test("decodes gzip bytes even without a Content-Encoding header", async () => {
+	const result = await getTraining(bindings, input, async () => new Response(
+		gzipSync(JSON.stringify({ res: { trains: [{ title: "compressed" }] } })),
+	));
+	assert.equal(result.isError, undefined);
+	assert.equal(JSON.parse(result.content[0].text).res.trains[0].title, "compressed");
+});
+
+test("diagnostics distinguish request, timeout, body, gzip and JSON failures", async () => {
+	const cases = [
+		[async () => { throw new TypeError("secret detail"); }, "XUNJI_NETWORK"],
+		[async () => { throw new DOMException("secret detail", "TimeoutError"); }, "XUNJI_TIMEOUT"],
+		[async () => ({ ok: true, arrayBuffer: async () => { throw new Error("secret detail"); } }), "XUNJI_BODY"],
+		[async () => new Response(new Uint8Array([0x1f, 0x8b, 0])), "XUNJI_GZIP"],
+		[async () => new Response("<html>secret detail</html>"), "XUNJI_JSON"],
+	];
+	for (const [fetcher, code] of cases) {
+		const result = await getTraining(bindings, input, fetcher);
+		assert.equal(result.isError, true);
+		assert.ok(result.content[0].text.startsWith(code));
+		assert.ok(!result.content[0].text.includes("secret detail"));
+	}
+});
+
+test("invalid header credentials fail locally without disclosing values", async () => {
+	const result = await getTraining({ XUNJI_TRAIN_API_KEY: "中文占位符" }, input, () => assert.fail("must not fetch"));
+	assert.match(result.content[0].text, /^XUNJI_KEY_FORMAT/);
+	assert.ok(!result.content[0].text.includes("中文占位符"));
 });

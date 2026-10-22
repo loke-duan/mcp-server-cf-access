@@ -32,7 +32,7 @@ plugin provides instructions; this Worker provides the actual tool. Example:
 Training results use `res.trains` and need not contain `success: true`. Errors,
 including rate limits, are returned as tool errors without exposing upstream
 bodies or exceptions. Credentials go only to the fixed official HTTPS training
-endpoint, and redirects are refused. Workers fetch handles compressed responses.
+endpoint, and redirects are refused. Compressed responses are decoded by Workers fetch, with a gzip-byte fallback when upstream encoding headers are missing.
 The tool does not retry automatically. Respect the 15-second lightweight /
 30-second full-data read limits and reuse results within a task when appropriate.
 This change does not add Xunji write tools.
