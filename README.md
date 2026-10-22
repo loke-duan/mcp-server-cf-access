@@ -1,3 +1,60 @@
+## Body measurements and Agent templates
+
+The following six tools complete body and template workflows:
+
+| Tool | Behavior |
+| --- | --- |
+| `xunji_get_body` | Query a date range, types and pagination; weight kg, bodyfat %, dimensions cm. Waist uses the API spelling `weist`. |
+| `xunji_preview_body` | Server dry-run; show `res.summary` and exact records with units for confirmation. |
+| `xunji_commit_body` | Upsert only the matching reviewed records after explicit confirmation. |
+| `xunji_sync_templates` | Sync the dedicated Agent folder; send `{}` for complete state. |
+| `xunji_preview_templates` | Sync and check scope, names, capacity and versions; return the full proposed mutation for review without writing. |
+| `xunji_apply_templates` | Recheck and apply exactly the confirmed mutation. |
+
+Set `XUNJI_BODY_API_KEY` and `XUNJI_TEMPLATE_API_KEY` as separate Worker runtime
+secrets under Settings > Variables and Secrets, then Deploy. Do not use the Builds
+section. As with other tools, the existing Access policy determines who can use
+these personal keys. Do not admit untrusted users to this single-account server.
+Refresh the MCP application after deployment to discover the new tools.
+
+Creation of these tools does not authorize any actual data writes. Show the user
+all proposed changes and wait for explicit confirmation before calling commit or
+apply with `confirmed: true`. The 15-minute preview token binds the exact payload
+and request ID; changed or expired proposals need a new preview and confirmation.
+Tokens are HMAC signatures, not API credentials, and store no health data on the
+server. Bodies and template results are returned only through authenticated MCP.
+
+Body records upsert by date/type. First preview (`dry_run: true`), show summary,
+then commit the same `client_request_id` and records. Reuse IDs and payloads for
+uncertain retries. There are no body-delete tools.
+
+Template writes are restricted to IDs in the sync response's Agent folder.
+Limits are one Agent folder, 14 active templates, 15 movements/template and 20
+sets/movement. No folder-ID changes, move, share, or folder-delete operations are
+exposed. A deleted Agent folder is not automatically recreated. A folder rename
+is permitted with the latest `base_version`; names allow only Chinese/English
+letters, digits and ordinary spaces (folder names at most 32 characters).
+
+Use public `movements` for new templates. Native `movement` arrays and `rules` can
+be retained for edits when every movement exposes a verifiable `sets` array;
+other native shapes are rejected rather than guessed, truncated or silently
+converted. Read official Chinese movement names before proposing changes. On
+version conflicts, sync, show the conflict and obtain fresh confirmation. There
+are no automatic retries. Respect server-provided retry delays, including the
+15-second body endpoint rate limits.
+
+`OAUTH_KV` stores only hashed template dispatch fingerprints for 24 hours, not
+records, template contents, preview payloads or API keys. These fingerprints let
+confirmed retries forward the original `mutation_id` to the upstream idempotent
+API without being incorrectly blocked by versions changed by the original write.
+The backend remains responsible for mutation deduplication. Template edits still
+use latest versions before the first dispatch.
+
+Tests use synthetic body measurements and templates, including mocked write APIs
+inside the Workers runtime. No real user records are read or modified by tests.
+
+---
+
 ## Xunji food records
 
 The read-only `xunji_get_food` tool reads a single requested `datestr` (YYYY-MM-DD),

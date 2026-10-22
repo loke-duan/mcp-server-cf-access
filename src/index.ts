@@ -7,6 +7,9 @@ import { handleAccessRequest } from "./access-handler";
 import type { Props } from "./workers-oauth-utils";
 import { registerXunjiTools } from "./xunji";
 
+import { registerBodyTools } from "./xunji-body";
+import { registerTemplateTools } from "./xunji-templates";
+
 const ALLOWED_EMAILS = new Set(["<INSERT EMAIL>"]);
 
 function createServer() {
@@ -16,6 +19,8 @@ function createServer() {
 	});
 	const props = getMcpAuthContext()?.props as Props | undefined;
 	registerXunjiTools(server, env as Env, Boolean(props?.email));
+	registerBodyTools(server, env as Env, Boolean(props?.email));
+	registerTemplateTools(server, env as Env, Boolean(props?.email));
 
 	server.registerTool(
 		"add",
