@@ -50,7 +50,7 @@ MCP 服务与 skill 分工不同：**skill 提供操作说明，MCP 工具执行
 
 ### App 原始 skill 文档
 
-仓库中的 [xunji_skill.md](./xunji_skill.md) 保存了从训记 App 导出的原始 skill／Open API 说明，合并包含训练、饮食、身体和 Agent 个人模板四个部分，作为本项目实现和后续维护的接口参考。文档保留了原有说明结构，密钥值已替换为环境变量引用：
+仓库中的 [xunji-all-skills_20261023.md](./xunji-all-skills_20261023.md) 保存了从训记 App 导出的原始 skill／Open API 说明，合并包含训练、饮食、身体和 Agent 个人模板四个部分，作为本项目实现和后续维护的接口参考。该文件是 2026-10-23 的接口说明快照，保留原有说明结构；仓库中的旧版 skill 文件已由此文件替代，密钥值统一以环境变量引用表示：
 
 | 变量名 | 对应凭证 |
 | --- | --- |
@@ -199,6 +199,16 @@ npx wrangler deploy --dry-run
 | 网络、解压或 JSON 错误 | 按错误中的请求阶段排查 Worker 出站连接和上游响应，不要反复修改无关密钥 |
 | 预览令牌过期或内容不一致 | 重新预览相同目标，并再次获得用户确认 |
 
-## 项目来源
+## 来源与参考
 
-本项目由 Cloudflare Access OAuth MCP 示例改造而来，新增训记工具、写入确认、错误处理和测试。保留原有 OAuth 登录架构；README 已围绕训记用途整理，遗留演示代码仍以仓库实际实现为准。
+- [Cloudflare：Secure MCP servers](https://developers.cloudflare.com/cloudflare-one/access-controls/ai-controls/secure-mcp-servers/)：MCP 服务的访问控制与认证方案参考。
+- Cloudflare Access OAuth MCP 示例：本项目的 Worker 与 OAuth 基础框架来源。
+- [训记 App 原始 skill／Open API 说明（2026-10-23）](./xunji-all-skills_20261023.md)：训练、饮食、身体数据和 Agent 模板接口参考；密钥已替换为变量引用。
+
+本项目在 Cloudflare 示例基础上新增训记工具、写入确认、错误处理和测试。接口能力及限制以当前代码和对应日期的训记文档为准。
+
+## 开发与致谢
+
+本仓库的训记业务代码、测试与项目文档，由 **ChatGPT（昵称“G老师”）** 根据项目维护者的需求协助生成、排错并持续迭代；基础 Worker 与 OAuth 框架来自 Cloudflare 示例。项目维护者负责提出需求、配置凭证、部署及实际使用验证。
+
+感谢 **G老师** 在代码实现、问题排查和文档整理中的帮助，也感谢 Cloudflare 提供的基础设施与示例，以及训记提供的 Open API。
