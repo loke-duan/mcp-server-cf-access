@@ -38,9 +38,13 @@ export async function getTraining(
 			method: "POST",
 			headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
 			body: JSON.stringify({ schema_version: "train_open_api_v2", ...parsed.data }),
-			redirect: "error",
+			// workerd supports manual/follow, but rejects redirect:"error" before I/O.
+			redirect: "manual",
 			signal: AbortSignal.timeout(20_000),
 		});
+		if ([301, 302, 303, 307, 308].includes(response.status)) {
+			return failure(`XUNJI_REDIRECT: The training endpoint returned HTTP ${response.status}. Redirect was not followed; credentials were not forwarded.`);
+		}
 		if (!response.ok) {
 			// Do not expose upstream response bodies, headers or exception messages.
 			const retry = response.headers.get("Retry-After");

@@ -14,7 +14,7 @@ test("reads the exact date using a secret header, accepting res without success"
 		assert.equal(url, "https://trains.xunjiapp.cn/api_trains_for_llm_v2");
 		assert.equal(options.headers.Authorization, `Bearer ${bindings.XUNJI_TRAIN_API_KEY}`);
 		assert.equal(options.method, "POST");
-		assert.equal(options.redirect, "error");
+		assert.equal(options.redirect, "manual");
 		assert.deepEqual(JSON.parse(options.body), { schema_version: "train_open_api_v2", datestr: input.datestr, include_full_data: false });
 		return json({ res: { trains: [{ title: "腿部训练", localid: 1 }] } });
 	});
@@ -109,4 +109,17 @@ test("invalid header credentials fail locally without disclosing values", async 
 	const result = await getTraining({ XUNJI_TRAIN_API_KEY: "中文占位符" }, input, () => assert.fail("must not fetch"));
 	assert.match(result.content[0].text, /^XUNJI_KEY_FORMAT/);
 	assert.ok(!result.content[0].text.includes("中文占位符"));
+});
+
+test("redirects are refused without fetching another host or exposing Location", async () => {
+	let calls = 0;
+	const result = await getTraining(bindings, input, async (_, options) => {
+		calls++;
+		assert.equal(options.redirect, "manual");
+		return new Response(null, { status: 307, headers: { Location: "https://other.invalid/private" } });
+	});
+	assert.equal(calls, 1);
+	assert.equal(result.isError, true);
+	assert.match(result.content[0].text, /^XUNJI_REDIRECT/);
+	assert.ok(!result.content[0].text.includes("other.invalid"));
 });
