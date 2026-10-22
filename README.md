@@ -1,3 +1,49 @@
+## Xunji training tool
+
+This server exposes the read-only `xunji_get_training` MCP tool. Arguments:
+`datestr` (a real `YYYY-MM-DD` date in the user's timezone) and
+`include_full_data` (default `false`; enable for RPE, notes, unfinished sets,
+drop sets and heart-rate summaries).
+
+Configure the encrypted secret on the **same Worker** as this repository, then deploy:
+
+```sh
+npx wrangler secret put XUNJI_TRAIN_API_KEY
+npm run deploy
+```
+
+If the key is already set in Cloudflare, retain it. Do not put keys in GitHub,
+ChatGPT, tool arguments or `wrangler.jsonc`. This tool stays listed when a key is
+missing and returns a clear configuration error.
+
+The existing Cloudflare Access OAuth flow protects this tool. It uses a single
+personal Xunji key: **every user admitted by the Access policy can read that
+account's training data**. Restrict the Access application to the owner or trusted
+users. This is not multi-user Xunji account mapping.
+
+After deploying, refresh the custom MCP app's tools in ChatGPT (reconnect if
+needed). Verify that `xunji_get_training` is listed. The skill-only `训记助手`
+plugin provides instructions; this Worker provides the actual tool. Example:
+
+```json
+{ "datestr": "2026-10-22", "include_full_data": true }
+```
+
+Training results use `res.trains` and need not contain `success: true`. Errors,
+including rate limits, are returned as tool errors without exposing upstream
+bodies or exceptions. Credentials go only to the fixed official HTTPS training
+endpoint, and redirects are refused. Workers fetch handles compressed responses.
+The tool does not retry automatically. Respect the 15-second lightweight /
+30-second full-data read limits and reuse results within a task when appropriate.
+This change does not add Xunji write tools.
+
+Run `npm test` with Node 22.18+ or Node 24+, `npm run type-check`, and
+`npx wrangler deploy --dry-run` for verification. Tests use synthetic records and
+mocked requests. Deployment alone does not verify the live key or refresh
+ChatGPT's cached tool list.
+
+---
+
 # Model Context Protocol (MCP) Server + Access OAuth
 
 This is a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/introduction) server that supports remote MCP connections, with Access OAuth built-in.

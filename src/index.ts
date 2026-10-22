@@ -5,6 +5,7 @@ import { createMcpHandler, getMcpAuthContext } from "agents/mcp/server";
 import { z } from "zod";
 import { handleAccessRequest } from "./access-handler";
 import type { Props } from "./workers-oauth-utils";
+import { registerXunjiTools } from "./xunji";
 
 const ALLOWED_EMAILS = new Set(["<INSERT EMAIL>"]);
 
@@ -14,6 +15,7 @@ function createServer() {
 		version: "1.0.0",
 	});
 	const props = getMcpAuthContext()?.props as Props | undefined;
+	registerXunjiTools(server, env as Env, Boolean(props?.email));
 
 	server.registerTool(
 		"add",
