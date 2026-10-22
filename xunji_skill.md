@@ -206,7 +206,7 @@ Content-Type: application/json
 
 ## 鉴权
 - 查询、写回、自定义食物和模板接口请求头: `Authorization: Bearer ${XUNJI_FOOD_API_KEY}`
-- 食物搜索接口请求头: `Authorization: Bearer cc610e97a69ebb7a14dc2a472d07f6bc`
+- 食物搜索接口请求头: `Authorization: Bearer ${XUNJI_FOOD_SEARCH_API_KEY}`
 - 饮食记录接口也兼容请求头 `x-api-key`；食物搜索接口也兼容 `x-agent-key` 或 `x-api-key`。
 - 不支持把 Key 放在 body 或 query 里。
 - 不要把 Key 写入日志或展示给第三方。
@@ -242,7 +242,7 @@ Content-Type: application/json
 ## 搜索食物
 ```http
 POST https://api.xunjiapp.cn/open_agent/food/search_gzip
-Authorization: Bearer cc610e97a69ebb7a14dc2a472d07f6bc
+Authorization: Bearer ${XUNJI_FOOD_SEARCH_API_KEY}
 Content-Type: application/json
 
 {
