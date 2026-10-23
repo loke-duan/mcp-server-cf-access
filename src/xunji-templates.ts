@@ -91,11 +91,12 @@ export async function applyTemplates(env: TemplatesEnv, input: z.input<typeof te
  const r = await postXunji("templatesMutate", env.XUNJI_TEMPLATE_API_KEY, { ...mutation, confirmed: true }, fetcher);
  return r.ok ? toolData(r.data, env.XUNJI_TEMPLATE_API_KEY) : toolError(r.error);
 }
-export function registerTemplateTools(server: McpServer, env: TemplatesEnv, authenticated: boolean) {
+export function registerTemplateTools(server: McpServer, env: TemplatesEnv, authenticated: boolean, includeMutations = true) {
  server.registerTool("xunji_sync_templates", {
   description: "Sync only the dedicated Xunji Agent template folder. Send {} for complete state; only send template_versions for fully cached templates. Respect folder_deleted and clear only this folder's cache. Read or edit templates only after a fresh sync.", inputSchema: templatesSyncInput,
   annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
  }, async input => authenticated ? syncTemplates(env, input) : toolError("Sign in before reading templates."));
+ if (!includeMutations) return;
  server.registerTool("xunji_preview_templates", {
   description: "Read latest Agent folder state and preview a proposed template mutation without writing. Check folder scope, capacity (14 templates, 15 movements, 20 sets), names and base versions. Use official Chinese movement names; preserve synced fields when editing. Show exact review and wait for explicit confirmation. Keep mutation_id/client_id stable. Native movement arrays require visible sets arrays; unsupported native shapes must be converted with user review, never guessed or truncated.", inputSchema: mutationInput,
   annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
