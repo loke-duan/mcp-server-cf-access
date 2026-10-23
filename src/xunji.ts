@@ -17,17 +17,33 @@ export const trainingInput = z.object({
 const TRAINING_URL = "https://trains.xunjiapp.cn/api_trains_for_llm_v2";
 
 export const foodInput = z.object({
-	datestr: z.iso.date().describe("Requested food-record date in the user's timezone, YYYY-MM-DD. Query only dates the user requested, within the past year or next three months."),
+	start_date: z.iso.date().describe("First requested food-record date in the user's timezone, YYYY-MM-DD."),
+	end_date: z.iso.date().describe("Last requested food-record date in the user's timezone, YYYY-MM-DD."),
 	include_detail: z.boolean().default(true).describe("Include individual foods, quantities and nutrition details."),
-});
+}).refine(value => value.start_date <= value.end_date, "start_date must not exceed end_date");
+
+function isoDateOffset(now: Date, years: number, months: number) {
+	const targetMonth = now.getUTCMonth() + months;
+	const targetYear = now.getUTCFullYear() + years + Math.floor(targetMonth / 12);
+	const normalizedMonth = ((targetMonth % 12) + 12) % 12;
+	const lastDay = new Date(Date.UTC(targetYear, normalizedMonth + 1, 0)).getUTCDate();
+	const date = new Date(Date.UTC(targetYear, normalizedMonth, Math.min(now.getUTCDate(), lastDay)));
+	return date.toISOString().slice(0, 10);
+}
 
 export async function getFood(
 	bindings: XunjiEnv,
 	input: z.input<typeof foodInput>,
 	fetcher: typeof fetch = fetch,
+	now: Date = new Date(),
 ) {
 	const parsed = foodInput.safeParse(input);
-	if (!parsed.success) return failure("Invalid food date or options. Use YYYY-MM-DD.");
+	if (!parsed.success) return failure("Invalid food date range or options. Use YYYY-MM-DD and ensure start_date does not exceed end_date.");
+	const earliest = isoDateOffset(now, -1, 0);
+	const latest = isoDateOffset(now, 0, 3);
+	if (parsed.data.start_date < earliest || parsed.data.end_date > latest) {
+		return failure(`XUNJI_FOOD_RANGE: Query dates must be between ${earliest} and ${latest}.`);
+	}
 	const key = bindings.XUNJI_FOOD_API_KEY?.trim();
 	if (!key) return failure("Configure the XUNJI_FOOD_API_KEY Worker secret before querying food records.");
 	if (!/^[\x21-\x7e]+$/.test(key)) return failure("XUNJI_FOOD_KEY_FORMAT: Store only the raw food API key without spaces, control characters or non-ASCII characters.");
@@ -36,7 +52,7 @@ export async function getFood(
 		const response = await fetcher("https://eatings.xunjiapp.cn/open/food/query_gzip", {
 			method: "POST",
 			headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-			body: JSON.stringify({ start_date: parsed.data.datestr, end_date: parsed.data.datestr, include_detail: parsed.data.include_detail }),
+			body: JSON.stringify(parsed.data),
 			redirect: "manual", signal: AbortSignal.timeout(20_000),
 		});
 		if ([301, 302, 303, 307, 308].includes(response.status)) return failure(`XUNJI_FOOD_REDIRECT: HTTP ${response.status}; redirect was not followed.`);
@@ -59,7 +75,7 @@ export async function getFood(
 			if (/仅VIP可用/.test(message)) return failure("XUNJI_FOOD_VIP: This API requires VIP membership.");
 			return failure("XUNJI_FOOD_RESPONSE: Expected success:true and res from the food API.");
 		}
-		const text = JSON.stringify({ datestr: parsed.data.datestr, res: result.res }).split(key).join("[REDACTED]");
+		const text = JSON.stringify({ start_date: parsed.data.start_date, end_date: parsed.data.end_date, res: result.res }).split(key).join("[REDACTED]");
 		return { content: [{ type: "text" as const, text }] };
 	} catch (error) {
 		const timeout = error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name);
@@ -147,7 +163,7 @@ export async function getTraining(
 
 export function registerXunjiTools(server: McpServer, bindings: XunjiEnv, authenticated: boolean) {
 	server.registerTool("xunji_get_food", {
-		description: "Read Xunji food and nutrition records for one explicitly requested date. Uses the separate food Worker secret, returns individual foods and totals where provided. Read-only; no food creation, template application or writes.",
+		description: "Read Xunji food and nutrition records for an explicitly requested date range within the past year and next three months. Uses the separate food Worker secret and returns individual foods and totals where provided. Read-only; no food search, creation, template operations or writes.",
 		inputSchema: foodInput,
 		annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
 	}, async (input) => {

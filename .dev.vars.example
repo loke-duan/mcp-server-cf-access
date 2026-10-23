@@ -9,4 +9,3 @@ COOKIE_ENCRYPTION_KEY=<generate using, eg, `openssl rand -hex 32`>
 XUNJI_TRAIN_API_KEY=<your Xunji training API key>
 XUNJI_FOOD_API_KEY=<your Xunji food API key>
 XUNJI_BODY_API_KEY=<your Xunji body API key>
-XUNJI_TEMPLATE_API_KEY=<your Xunji Agent template API key>

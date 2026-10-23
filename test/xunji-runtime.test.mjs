@@ -9,7 +9,9 @@ test("real Workers runtime can send training and food requests without redirect-
 			contents: `import { getTraining, getFood } from './src/xunji.ts';
 				export default { async fetch(request) {
 					if (new URL(request.url).pathname === '/food') return Response.json(await getFood(
-						{ XUNJI_FOOD_API_KEY: 'synthetic-food-key' }, { datestr: '2026-10-22' }
+						{ XUNJI_FOOD_API_KEY: 'synthetic-food-key' },
+						{ start_date: '2026-10-22', end_date: '2026-10-22' },
+						fetch, new Date('2026-10-23T00:00:00Z')
 					));
 					return Response.json(await getTraining(
 						{ XUNJI_TRAIN_API_KEY: 'synthetic-runtime-key' },
