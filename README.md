@@ -182,8 +182,15 @@ npx wrangler deploy --dry-run
 - 不自动重试失败请求；遇到限频时遵守接口返回的等待时间。
 - 查询结果会进入调用方 AI 客户端的会话上下文，后续保存与处理受该客户端的数据政策约束。
 
-## 来源
+## 开发与致谢
+
+本仓库基于 Cloudflare 官方示例项目开发，实现了部分训记（Xunji）MCP 服务能力。
+
+- 感谢 Cloudflare 提供基础设施和示例项目。
+- 感谢训记提供 API 接口和原始 skill 文档。
+- 感谢 G老师（ChatGPT）提供技术支持；本仓库代码均由 G老师根据项目维护者提出的需求编写，项目维护者负责配置、部署和实际使用验证。
+
+## 参考资料
 
 - [Cloudflare：Secure MCP servers](https://developers.cloudflare.com/cloudflare-one/access-controls/ai-controls/secure-mcp-servers/)
-- Cloudflare Access OAuth MCP 示例
 - [训记 App skill／Open API 说明（2026-10-23）](./xunji-all-skills_20261023.md)
