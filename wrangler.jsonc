@@ -4,7 +4,7 @@
  */
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "mcp-server-cf-access",
+  "name": "xunji-mcp-server-cf-access",
   "main": "src/index.ts",
   "compatibility_date": "2026-03-10",
   "compatibility_flags": ["nodejs_compat"],
@@ -14,9 +14,6 @@
       "id": "5fefd76d663943bdb2f2f56b40afe228"
     }
   ],
-  "ai": {
-    "binding": "AI"
-  },
   "observability": {
     "enabled": true
   },
