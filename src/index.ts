@@ -8,7 +8,6 @@ import type { Props } from "./workers-oauth-utils";
 import { registerXunjiTools } from "./xunji";
 
 import { registerBodyTools } from "./xunji-body";
-import { registerTemplateTools } from "./xunji-templates";
 
 const ALLOWED_EMAILS = new Set(["<INSERT EMAIL>"]);
 
@@ -20,7 +19,8 @@ function createServer() {
 	const props = getMcpAuthContext()?.props as Props | undefined;
 	registerXunjiTools(server, env as Env, Boolean(props?.email));
 	registerBodyTools(server, env as Env, Boolean(props?.email));
-	registerTemplateTools(server, env as Env, Boolean(props?.email));
+	// TEMPORARY: isolate ChatGPT action discovery by omitting all three template tools.
+	// Restore the registerTemplateTools import and call after the client comparison.
 
 	server.registerTool(
 		"add",
